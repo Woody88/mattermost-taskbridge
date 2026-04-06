@@ -1,0 +1,30 @@
+{
+  "name": "obsidian-mcp-server",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "prepare": "effect-language-service patch && effect-tsgo patch && lefthook install",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "fmt": "dprint fmt",
+    "fmt:check": "dprint check"
+  },
+  "devDependencies": {
+    "@effect/language-service": "^0.84.3",
+    "@effect/tsgo": "0.2.1",
+    "@types/bun": "latest",
+    "@typescript/native-preview": "latest",
+    "dprint": "^0.53.2",
+    "lefthook": "^2.1.4",
+    "oxlint": "^1.58.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "effect": "^4.0.0-beta.43",
+    "effect-oxlint": "^0.1.0"
+  }
+}
