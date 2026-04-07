@@ -1,56 +1,50 @@
 #!/bin/sh
-# mattermost-taskbridge container entrypoint
+# mattermost-taskbridge container entrypoint (bd v1.0.0 + Architecture A3)
 #
-# bd's default auto-start-dolt behavior doesn't work reliably when bd is
-# invoked as a per-request subprocess (our slash command handlers do this).
-# Symptom: the first bd invocation spawns a dolt server, dolt grabs the
-# exclusive write lock, bd fails to write the lock file with the port,
-# every subsequent bd invocation tries to spawn a new dolt that fails on
-# "database locked by another dolt process" and times out after 10s.
+# bd v1.0.0's embedded Dolt mode eliminates the long-lived dolt sql-server
+# lifecycle that the previous (0.61.0) entrypoint had to manage. Each
+# project's bd database lives in .beads/embeddeddolt/<dbname>, bootstrapped
+# from the project's git+https Dolt remote on first boot via `dolt clone`.
+# bd's auto-push debounce (5 min default) handles ongoing sync to github
+# without a custom polling loop. See ADR obsidian-mcp-server-l75 for the
+# full architecture rationale and obsidian-mcp-server-wpq for what this
+# replaces.
 #
-# The fix is to pre-start exactly ONE long-lived dolt server per configured
-# project BEFORE taskbridge begins accepting HTTP traffic, and to clean up
-# any stale lock / pid / port files from a previous container lifetime so
-# bd writes fresh state.
+# Boot sequence:
+#   1. Start taskbridge in the background. Its existing ensureRepos
+#      startup task does the per-project `git clone` / `git pull`.
+#   2. For each configured project, wait for the .git dir to appear,
+#      then `dolt clone git+https://...` into .beads/embeddeddolt/<dbname>
+#      if it doesn't already exist on the PVC.
+#   3. Wait on taskbridge so tini forwards SIGTERM cleanly through the
+#      wrapper at shutdown.
 #
-# Chicken-and-egg: dolt can only be started after the repo is cloned, but
-# taskbridge itself does the cloning via its ensureRepos startup task. We
-# handle this by:
-#   1. Kicking off taskbridge in the background.
-#   2. Polling for each configured repo's .beads directory to appear.
-#   3. For each repo: killing stale dolt state, running `bd dolt start`.
-#   4. Waiting for taskbridge (the real PID 1 workload, via tini).
-#
-# This is a shell wrapper so taskbridge's TypeScript stays unaware of the
-# bd server lifecycle. If we later solve the bd-in-cluster issue upstream,
-# we can drop this wrapper entirely.
+# Idempotent: container restarts skip the dolt clone for any project
+# whose embedded dolt dir already exists on the PVC. The PVC is RWO so
+# we always have a single replica writing.
 
 set -eu
 
 REPOS_DIR="${REPOS_DIR:-/data/repos}"
 PROJECTS_CONFIG_PATH="${PROJECTS_CONFIG_PATH:-/app/config/projects.json}"
 BOOT_TIMEOUT="${BOOT_TIMEOUT:-60}"
-SYNC_INTERVAL="${SYNC_INTERVAL:-15}"
 
-echo "[entrypoint] starting taskbridge in background"
+echo "[entrypoint] starting taskbridge in background (it will run ensureRepos)"
 /app/taskbridge &
 TB_PID=$!
 
-# Derive the list of project keys from projects.json. Minimal JSON parsing
-# via grep+cut — we don't want to pull in jq just for this.
-project_keys() {
-  grep -o '"key"[[:space:]]*:[[:space:]]*"[^"]*"' "$PROJECTS_CONFIG_PATH" \
-    | cut -d'"' -f4
+# Emit one line per configured project: "<key> <repo_url> <branch>"
+project_lines() {
+  jq -r '.projects[] | "\(.key) \(.repo) \(.branch // "main")"' "$PROJECTS_CONFIG_PATH"
 }
 
-# Wait for a given repo's .beads directory to exist (taskbridge clones it
-# during ensureRepos on boot). Return 0 on success, 1 on timeout.
+# Wait for taskbridge's ensureRepos to clone a given project's repo. Returns
+# 0 once .git is present, 1 on timeout.
 wait_for_repo() {
   key=$1
-  path="$REPOS_DIR/$key/.beads"
   i=0
   while [ $i -lt "$BOOT_TIMEOUT" ]; do
-    if [ -d "$path" ]; then
+    if [ -d "$REPOS_DIR/$key/.git" ]; then
       return 0
     fi
     sleep 1
@@ -59,110 +53,59 @@ wait_for_repo() {
   return 1
 }
 
-start_dolt_for() {
+# Bootstrap the embedded dolt store for a project from its git+https Dolt
+# remote. The github repo's refs/dolt/data ref carries the canonical bd
+# state, populated by `bd dolt push` from the dev box. Idempotent — skips
+# if the embedded dolt dir already exists.
+#
+# Database name follows bd v1.0.0's convention: hyphens in the project key
+# become underscores in the dolt database directory name (e.g. project key
+# "mattermost-taskbridge" becomes db name "mattermost_taskbridge").
+bootstrap_dolt() {
   key=$1
+  repo_url=$2
   repo="$REPOS_DIR/$key"
-  echo "[entrypoint] preparing dolt for $key"
-  cd "$repo"
+  dbname=$(echo "$key" | tr - _)
+  doltdir="$repo/.beads/embeddeddolt/$dbname"
 
-  # Clean stale lifecycle state from previous container lifetimes. These
-  # files live on the PVC and persist across restarts, so we purge them
-  # before starting a fresh dolt. Stale entries here are why the previous
-  # container lifetime's bd invocations would fail to find the live dolt.
-  rm -f .beads/dolt-server.lock .beads/dolt-server.pid .beads/dolt-server.port
-
-  # Kill any dolt still holding a lock in this data dir. In practice this
-  # only hits after a crashed previous lifetime that tini didn't fully
-  # reap, but it's cheap insurance.
-  pkill -9 -f "dolt.*$repo/.beads/dolt" 2>/dev/null || true
-  sleep 1
-
-  # If the .beads/dolt data dir doesn't exist, we need to init from the
-  # committed backup JSONLs. bd init creates a fresh dolt, then
-  # bd backup restore replays the JSONLs into it.
-  if [ ! -d "$repo/.beads/dolt" ]; then
-    if [ -f "$repo/.beads/backup/issues.jsonl" ]; then
-      echo "[entrypoint]   fresh clone, running bd init + bd backup restore"
-      /usr/local/bin/bd init --prefix "$key" >/dev/null 2>&1 || true
-      /usr/local/bin/bd backup restore >/dev/null 2>&1 || true
-    else
-      echo "[entrypoint]   no dolt data and no backup JSONLs — bd will return empty"
-      /usr/local/bin/bd init --prefix "$key" >/dev/null 2>&1 || true
-    fi
+  if [ -d "$doltdir" ]; then
+    echo "[entrypoint]   $key embedded dolt already bootstrapped at $doltdir"
+    return 0
   fi
 
-  # Start a single long-lived dolt server for this project. Returns
-  # once the server is accepting connections. Subsequent bd invocations
-  # from taskbridge handlers find it via the freshly written lock file.
-  echo "[entrypoint]   starting long-lived dolt"
-  /usr/local/bin/bd dolt start 2>&1 || {
-    echo "[entrypoint]   WARNING: bd dolt start failed for $key"
-  }
-  cd /app
+  # Skip the local-tree case (repo: ".") since there's no remote to clone
+  # from. taskbridge in the cluster never uses repo=".", but be defensive.
+  if [ "$repo_url" = "." ]; then
+    echo "[entrypoint]   $key has repo='.' — skipping dolt bootstrap"
+    return 0
+  fi
+
+  echo "[entrypoint]   $key bootstrapping embedded dolt from git+https Dolt remote"
+  mkdir -p "$repo/.beads/embeddeddolt"
+  cd "$repo/.beads/embeddeddolt"
+  if /usr/local/bin/dolt clone "git+$repo_url" "$dbname"; then
+    echo "[entrypoint]   $key bootstrapped successfully"
+    cd /app
+    return 0
+  else
+    echo "[entrypoint]   ERROR: dolt clone failed for $key — bd will return empty for this project"
+    cd /app
+    return 1
+  fi
 }
 
-# Wait for each configured project's clone to land, then start dolt for it.
-for key in $(project_keys); do
-  echo "[entrypoint] waiting for $key clone"
+# Process each project. We use a temp file to keep `while read` out of a
+# subshell so the loop's exit status is meaningful and any vars survive.
+project_lines > /tmp/projects.list
+while read -r key repo_url branch; do
+  echo "[entrypoint] waiting for $key clone (timeout ${BOOT_TIMEOUT}s)"
   if wait_for_repo "$key"; then
-    start_dolt_for "$key"
+    bootstrap_dolt "$key" "$repo_url" || true
   else
-    echo "[entrypoint] WARNING: timeout waiting for $key repo to appear"
+    echo "[entrypoint] WARNING: timeout waiting for $key repo clone — bd will return empty for this project"
   fi
-done
+done < /tmp/projects.list
+rm -f /tmp/projects.list
 
-echo "[entrypoint] dolt boot complete"
-
-# Background sync loop: polls git for new commits every SYNC_INTERVAL
-# seconds and runs bd backup restore when anything changed. This gives us
-# gitops-native dev→cluster sync without needing a webhook or a Dolt
-# remote. Bounded lag, bounded by SYNC_INTERVAL.
-#
-# Why we can't sync per-request:
-#   bd backup restore takes ~7 s even on a no-op database because of the
-#   dolt connection overhead. Mattermost's slash command timeout is 3 s.
-#   Running bd in the request path blows the budget every time.
-#
-# Why the git rev-parse short-circuit matters:
-#   bd itself has no cheap "is there new data?" check — every bd read
-#   also costs ~7 s. But git fetch is ~500 ms and `git rev-parse` is
-#   ~40 ms. So we use git as the idempotency check and only run the
-#   expensive bd op when git tells us there's actually new data. Most
-#   cycles are a ~500 ms no-op.
-#
-# Safety:
-#   Only runs git pull --ff-only so a dev-side force-push won't clobber
-#   unexpected local commits (there shouldn't be any in the pod, but
-#   belt and suspenders).
-#   Every bd write path that lands in Phase 2 will need to commit + push
-#   the backup JSONLs back to git, otherwise this loop will keep
-#   overwriting the pod-local state.
-(
-  while true; do
-    sleep "$SYNC_INTERVAL"
-    for key in $(project_keys); do
-      repo="$REPOS_DIR/$key"
-      [ -d "$repo/.git" ] || continue
-      cd "$repo"
-      # Skip silently if offline / fetch fails.
-      git fetch --quiet origin main 2>/dev/null || { cd /app; continue; }
-      local_head=$(git rev-parse HEAD 2>/dev/null || echo "")
-      remote_head=$(git rev-parse origin/main 2>/dev/null || echo "")
-      if [ -n "$remote_head" ] && [ "$local_head" != "$remote_head" ]; then
-        echo "[sync] $key: $local_head -> $remote_head"
-        if git pull --ff-only --quiet 2>/dev/null; then
-          /usr/local/bin/bd backup restore 2>&1 | tail -1 || true
-          echo "[sync] $key: restore complete"
-        else
-          echo "[sync] $key: git pull failed (non-fast-forward?)"
-        fi
-      fi
-      cd /app
-    done
-  done
-) &
-SYNC_PID=$!
-
-echo "[entrypoint] background sync loop started (pid $SYNC_PID, every ${SYNC_INTERVAL}s)"
-echo "[entrypoint] handing off to taskbridge (pid $TB_PID)"
+echo "[entrypoint] all projects processed, handing off to taskbridge (pid $TB_PID)"
 wait $TB_PID
