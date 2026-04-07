@@ -23,13 +23,33 @@ if command -v bd >/dev/null 2>&1; then
 fi
 # --- END BEADS INTEGRATION v0.61.0 ---
 
-# Chain lefthook after beads. We can't use `lefthook install` because beads
-# already owns core.hooksPath, so lefthook refuses to clobber it (see
-# obsidian-mcp-server-2xp). bd's `hooks install` docs explicitly promise that
-# user content outside the BEGIN/END markers is preserved across hook
-# regeneration, so this line survives `bd hooks install` upgrades.
-if command -v lefthook >/dev/null 2>&1; then
-  lefthook run pre-commit
-elif [ -x "node_modules/.bin/lefthook" ]; then
-  node_modules/.bin/lefthook run pre-commit
+# Inlined lint + format checks (replaces calling `lefthook run pre-commit`).
+#
+# Why not lefthook? beads owns core.hooksPath = .beads/hooks for its own
+# hook shims. lefthook also wants to install hooks at core.hooksPath. The
+# two clobber each other:
+#   - First we tried `lefthook install` from package.json prepare → it
+#     refused, blowing up `bun install` (obsidian-mcp-server-2xp).
+#   - Then we tried calling `lefthook run pre-commit` from inside this
+#     beads hook → lefthook auto-syncs on every invocation and overwrote
+#     this very file with its own shim, banishing the beads block to
+#     pre-commit.old. Same conflict, inverted.
+#
+# Conclusion: lefthook fundamentally cannot share core.hooksPath with
+# another tool. So we drop lefthook from the runtime path and inline the
+# two checks it was running. lefthook.yml is kept as a config artefact /
+# documentation only — nothing executes it. bd's BEGIN/END markers above
+# guarantee this section is preserved across `bd hooks install` upgrades.
+staged=$(git diff --cached --name-only --diff-filter=ACMR)
+if [ -n "$staged" ]; then
+  ts_files=$(printf '%s\n' "$staged" | grep -E '\.(ts|tsx|js|jsx)$' || true)
+  fmt_files=$(printf '%s\n' "$staged" | grep -E '\.(ts|tsx|js|jsx|json|md)$' || true)
+  if [ -n "$ts_files" ]; then
+    # shellcheck disable=SC2086
+    bunx oxlint $ts_files || exit $?
+  fi
+  if [ -n "$fmt_files" ]; then
+    # shellcheck disable=SC2086
+    bunx dprint check --allow-no-files $fmt_files || exit $?
+  fi
 fi
