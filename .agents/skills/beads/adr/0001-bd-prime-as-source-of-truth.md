@@ -13,6 +13,7 @@ The beads skill maintained CLI reference documentation in multiple locations:
 - Scattered examples throughout resource files
 
 This created:
+
 - **Duplication**: Same commands documented 2-3 times
 - **Drift risk**: Documentation can fall behind bd versions
 - **Token overhead**: ~3,000+ tokens loaded even for simple operations
@@ -44,6 +45,7 @@ Use `bd prime` as the single source of truth for CLI commands:
 ## Implementation
 
 Files restructured:
+
 - `SKILL.md` — Reduced from 3,306 to ~500 words
 - `references/` → `resources/` — Directory rename for consistency
 - New resources added: `agents.md`, `async-gates.md`, `chemistry-patterns.md`, `worktrees.md`

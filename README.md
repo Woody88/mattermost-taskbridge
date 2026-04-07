@@ -1,15 +1,15 @@
-# obsidian-mcp-server
+# mattermost-taskbridge
 
-To install dependencies:
+A lightweight Bun service that bridges Beads task state across multiple GitHub repos into Mattermost via slash commands and interactive messages.
+
+## Install
 
 ```bash
 bun install
 ```
 
-To run:
+## Run
 
 ```bash
 bun run index.ts
 ```
-
-This project was created using `bun init` in bun v1.3.10. [Bun](https://bun.com) is a fast all-in-one JavaScript runtime.

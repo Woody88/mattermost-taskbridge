@@ -5,6 +5,7 @@ A comprehensive skill for using [beads](https://github.com/steveyegge/beads) (bd
 ## What This Skill Does
 
 This skill teaches Claude Code how to use bd effectively for:
+
 - **Multi-session work tracking** - Persistent memory across conversation compactions
 - **Dependency management** - Graph-based issue relationships
 - **Session handoff** - Writing notes that survive context resets
@@ -25,6 +26,7 @@ cp -r beads .claude/skills/
 ## When Claude Uses This Skill
 
 The skill activates when conversations involve:
+
 - "multi-session", "complex dependencies", "resume after weeks"
 - "project memory", "persistent context", "side quest tracking"
 - Work that spans multiple days or compaction cycles
@@ -61,12 +63,12 @@ beads/
 
 ### bd vs TodoWrite
 
-| Use bd when... | Use TodoWrite when... |
-|----------------|----------------------|
-| Work spans multiple sessions | Single-session tasks |
-| Complex dependencies exist | Linear step-by-step work |
-| Need to resume after weeks | Just need a quick checklist |
-| Knowledge work with fuzzy boundaries | Clear, immediate tasks |
+| Use bd when...                       | Use TodoWrite when...       |
+| ------------------------------------ | --------------------------- |
+| Work spans multiple sessions         | Single-session tasks        |
+| Complex dependencies exist           | Linear step-by-step work    |
+| Need to resume after weeks           | Just need a quick checklist |
+| Knowledge work with fuzzy boundaries | Clear, immediate tasks      |
 
 ### The Dependency Direction Trap
 
@@ -97,23 +99,24 @@ NEXT: Implement rate limiting"
 
 ## Version Compatibility
 
-| Version | Features |
-|---------|----------|
-| v0.60.0+ | CLI credential pass-through for Dolt server push/pull |
-| v0.58.0+ | `bd prime --claim`, `bd show --long`, `--stdin` flag |
+| Version  | Features                                                                         |
+| -------- | -------------------------------------------------------------------------------- |
+| v0.60.0+ | CLI credential pass-through for Dolt server push/pull                            |
+| v0.58.0+ | `bd prime --claim`, `bd show --long`, `--stdin` flag                             |
 | v0.54.0+ | `bd doctor` detects committed runtime/sensitive files, `BD_BACKUP_ENABLED=false` |
-| v0.52.0+ | `bd sync` deprecated (use `bd dolt push`), `--claim` for atomic start-work |
-| v0.47.0+ | Pull-first sync, resolve-conflicts, dry-run create, gate auto-discovery |
-| v0.43.0+ | Full support: agents, gates, worktrees, chemistry patterns |
-| v0.40.0+ | Agent beads, async gates, worktree management |
-| v0.34.0+ | Molecules, wisps, cross-project dependencies |
-| v0.15.0+ | Core: dependencies, notes, status tracking |
+| v0.52.0+ | `bd sync` deprecated (use `bd dolt push`), `--claim` for atomic start-work       |
+| v0.47.0+ | Pull-first sync, resolve-conflicts, dry-run create, gate auto-discovery          |
+| v0.43.0+ | Full support: agents, gates, worktrees, chemistry patterns                       |
+| v0.40.0+ | Agent beads, async gates, worktree management                                    |
+| v0.34.0+ | Molecules, wisps, cross-project dependencies                                     |
+| v0.15.0+ | Core: dependencies, notes, status tracking                                       |
 
 ## Contributing
 
 This skill is maintained at [github.com/steveyegge/beads](https://github.com/steveyegge/beads) in the `claude-plugin/skills/beads/` directory.
 
 Issues and PRs welcome for:
+
 - Documentation improvements
 - New workflow patterns
 - Bug fixes in examples

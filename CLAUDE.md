@@ -1,3 +1,9 @@
+# mattermost-taskbridge
+
+A Bun HTTP service that bridges Beads task state across multiple GitHub repos into Mattermost via slash commands and interactive messages. Beads (`bd ready` / `bd show` / `bd list`) is the authoritative source of task state for this project.
+
+## Bun
+
 Default to using Bun instead of Node.js.
 
 - Use `bun <file>` instead of `node <file>` or `ts-node <file>`
@@ -129,6 +135,7 @@ This project uses `@effect/tsgo` — a superset of TypeScript-Go with Effect Lan
 <!-- effect-solutions:end -->
 
 <!-- BEGIN BEADS INTEGRATION v:1 profile:full hash:d4f96305 -->
+
 ## Issue Tracking with bd (beads)
 
 **IMPORTANT**: This project uses **bd (beads)** for ALL issue tracking. Do NOT use markdown TODOs, task lists, or other tracking methods.
@@ -234,6 +241,7 @@ For more details, see README.md and docs/QUICKSTART.md.
 7. **Hand off** - Provide context for next session
 
 **CRITICAL RULES:**
+
 - Work is NOT complete until `git push` succeeds
 - NEVER stop before pushing - that leaves work stranded locally
 - NEVER say "ready to push when you are" - YOU must push

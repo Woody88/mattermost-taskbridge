@@ -22,10 +22,10 @@ Graph-based issue tracker that survives conversation compaction. Provides persis
 
 **Decision test**: "Will I need this context in 2 weeks?" YES = bd, NO = TodoWrite.
 
-| bd (persistent) | TodoWrite (ephemeral) |
-|-----------------|----------------------|
+| bd (persistent)                                  | TodoWrite (ephemeral)       |
+| ------------------------------------------------ | --------------------------- |
 | Multi-session, dependencies, compaction survival | Single-session linear tasks |
-| Dolt-backed team sync | Conversation-scoped |
+| Dolt-backed team sync                            | Conversation-scoped         |
 
 See [BOUNDARIES.md](${CLAUDE_SKILL_DIR}/resources/BOUNDARIES.md) for detailed comparison.
 
@@ -61,18 +61,19 @@ Append `--json` to any command for structured output. Use `bd show <id> --long` 
 
 ## Error Handling
 
-| Error | Fix |
-|-------|-----|
-| `database not found` | `bd init <prefix>` in project root |
-| `not in a git repository` | `git init` first |
-| `disk I/O error (522)` | Move `.beads/` off cloud-synced filesystem |
-| Status updates lag | Use server mode: `bd dolt start` |
+| Error                     | Fix                                        |
+| ------------------------- | ------------------------------------------ |
+| `database not found`      | `bd init <prefix>` in project root         |
+| `not in a git repository` | `git init` first                           |
+| `disk I/O error (522)`    | Move `.beads/` off cloud-synced filesystem |
+| Status updates lag        | Use server mode: `bd dolt start`           |
 
 See [TROUBLESHOOTING.md](${CLAUDE_SKILL_DIR}/resources/TROUBLESHOOTING.md) for full details.
 
 ## Examples
 
 **Track a multi-session feature:**
+
 ```bash
 bd create "OAuth integration" -t epic -p 1 --json
 bd create "Token storage" -t task --deps blocks:oauth-id --json
@@ -87,23 +88,23 @@ bd close <id> --reason "Implemented with refresh tokens" --json
 
 ## Advanced Features
 
-| Feature | CLI | Resource |
-|---------|-----|----------|
-| Molecules (templates) | `bd mol --help` | [MOLECULES.md](${CLAUDE_SKILL_DIR}/resources/MOLECULES.md) |
+| Feature               | CLI                  | Resource                                                                     |
+| --------------------- | -------------------- | ---------------------------------------------------------------------------- |
+| Molecules (templates) | `bd mol --help`      | [MOLECULES.md](${CLAUDE_SKILL_DIR}/resources/MOLECULES.md)                   |
 | Chemistry (pour/wisp) | `bd pour`, `bd wisp` | [CHEMISTRY_PATTERNS.md](${CLAUDE_SKILL_DIR}/resources/CHEMISTRY_PATTERNS.md) |
-| Agent beads | `bd agent --help` | [AGENTS.md](${CLAUDE_SKILL_DIR}/resources/AGENTS.md) |
-| Async gates | `bd gate --help` | [ASYNC_GATES.md](${CLAUDE_SKILL_DIR}/resources/ASYNC_GATES.md) |
-| Worktrees | `bd worktree --help` | [WORKTREES.md](${CLAUDE_SKILL_DIR}/resources/WORKTREES.md) |
+| Agent beads           | `bd agent --help`    | [AGENTS.md](${CLAUDE_SKILL_DIR}/resources/AGENTS.md)                         |
+| Async gates           | `bd gate --help`     | [ASYNC_GATES.md](${CLAUDE_SKILL_DIR}/resources/ASYNC_GATES.md)               |
+| Worktrees             | `bd worktree --help` | [WORKTREES.md](${CLAUDE_SKILL_DIR}/resources/WORKTREES.md)                   |
 
 ## Resources
 
-| Category | Files |
-|----------|-------|
-| **Getting Started** | [BOUNDARIES.md](${CLAUDE_SKILL_DIR}/resources/BOUNDARIES.md), [CLI_REFERENCE.md](${CLAUDE_SKILL_DIR}/resources/CLI_REFERENCE.md), [WORKFLOWS.md](${CLAUDE_SKILL_DIR}/resources/WORKFLOWS.md) |
-| **Core Concepts** | [DEPENDENCIES.md](${CLAUDE_SKILL_DIR}/resources/DEPENDENCIES.md), [ISSUE_CREATION.md](${CLAUDE_SKILL_DIR}/resources/ISSUE_CREATION.md), [PATTERNS.md](${CLAUDE_SKILL_DIR}/resources/PATTERNS.md) |
-| **Resilience** | [RESUMABILITY.md](${CLAUDE_SKILL_DIR}/resources/RESUMABILITY.md), [TROUBLESHOOTING.md](${CLAUDE_SKILL_DIR}/resources/TROUBLESHOOTING.md) |
-| **Advanced** | [MOLECULES.md](${CLAUDE_SKILL_DIR}/resources/MOLECULES.md), [CHEMISTRY_PATTERNS.md](${CLAUDE_SKILL_DIR}/resources/CHEMISTRY_PATTERNS.md), [AGENTS.md](${CLAUDE_SKILL_DIR}/resources/AGENTS.md), [ASYNC_GATES.md](${CLAUDE_SKILL_DIR}/resources/ASYNC_GATES.md), [WORKTREES.md](${CLAUDE_SKILL_DIR}/resources/WORKTREES.md) |
-| **Reference** | [STATIC_DATA.md](${CLAUDE_SKILL_DIR}/resources/STATIC_DATA.md), [INTEGRATION_PATTERNS.md](${CLAUDE_SKILL_DIR}/resources/INTEGRATION_PATTERNS.md) |
+| Category            | Files                                                                                                                                                                                                                                                                                                                      |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Getting Started** | [BOUNDARIES.md](${CLAUDE_SKILL_DIR}/resources/BOUNDARIES.md), [CLI_REFERENCE.md](${CLAUDE_SKILL_DIR}/resources/CLI_REFERENCE.md), [WORKFLOWS.md](${CLAUDE_SKILL_DIR}/resources/WORKFLOWS.md)                                                                                                                               |
+| **Core Concepts**   | [DEPENDENCIES.md](${CLAUDE_SKILL_DIR}/resources/DEPENDENCIES.md), [ISSUE_CREATION.md](${CLAUDE_SKILL_DIR}/resources/ISSUE_CREATION.md), [PATTERNS.md](${CLAUDE_SKILL_DIR}/resources/PATTERNS.md)                                                                                                                           |
+| **Resilience**      | [RESUMABILITY.md](${CLAUDE_SKILL_DIR}/resources/RESUMABILITY.md), [TROUBLESHOOTING.md](${CLAUDE_SKILL_DIR}/resources/TROUBLESHOOTING.md)                                                                                                                                                                                   |
+| **Advanced**        | [MOLECULES.md](${CLAUDE_SKILL_DIR}/resources/MOLECULES.md), [CHEMISTRY_PATTERNS.md](${CLAUDE_SKILL_DIR}/resources/CHEMISTRY_PATTERNS.md), [AGENTS.md](${CLAUDE_SKILL_DIR}/resources/AGENTS.md), [ASYNC_GATES.md](${CLAUDE_SKILL_DIR}/resources/ASYNC_GATES.md), [WORKTREES.md](${CLAUDE_SKILL_DIR}/resources/WORKTREES.md) |
+| **Reference**       | [STATIC_DATA.md](${CLAUDE_SKILL_DIR}/resources/STATIC_DATA.md), [INTEGRATION_PATTERNS.md](${CLAUDE_SKILL_DIR}/resources/INTEGRATION_PATTERNS.md)                                                                                                                                                                           |
 
 ## Validation
 

@@ -1,0 +1,10 @@
+{
+  "projects": [
+    {
+      "key": "obsidian-mcp-server",
+      "repo": ".",
+      "display_name": "TaskBridge (self)",
+      "color": "#1D9E75"
+    }
+  ]
+}

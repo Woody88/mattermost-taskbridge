@@ -4,8 +4,8 @@
 
 ADRs in `adr/` document key decisions. These are NOT loaded during skill invocation—they're reference material for maintainers making changes.
 
-| ADR | Decision |
-|-----|----------|
+| ADR                                                 | Decision                                        |
+| --------------------------------------------------- | ----------------------------------------------- |
 | [ADR-0001](adr/0001-bd-prime-as-source-of-truth.md) | Use `bd prime` as CLI reference source of truth |
 
 ## Key Principle: DRY via bd prime
@@ -17,6 +17,7 @@ ADRs in `adr/` document key decisions. These are NOT loaded during skill invocat
 - Both auto-update with bd releases
 
 **SKILL.md should only contain:**
+
 - Decision frameworks (bd vs TodoWrite)
 - Prerequisites (install verification)
 - Resource index (progressive disclosure)
@@ -33,13 +34,13 @@ ADRs in `adr/` document key decisions. These are NOT loaded during skill invocat
 
 ### What belongs in resources:
 
-| Content Type | Belongs in Resources? | Why |
-|--------------|----------------------|-----|
-| Conceptual frameworks | ✅ Yes | bd prime doesn't explain "when to use" |
-| Decision trees | ✅ Yes | Cognitive guidance, not CLI reference |
-| Advanced patterns | ✅ Yes | Depth beyond `--help` |
-| CLI command syntax | ❌ No | Use `bd <cmd> --help` |
-| Workflow checklists | ❌ No | `bd prime` covers this |
+| Content Type          | Belongs in Resources? | Why                                    |
+| --------------------- | --------------------- | -------------------------------------- |
+| Conceptual frameworks | ✅ Yes                | bd prime doesn't explain "when to use" |
+| Decision trees        | ✅ Yes                | Cognitive guidance, not CLI reference  |
+| Advanced patterns     | ✅ Yes                | Depth beyond `--help`                  |
+| CLI command syntax    | ❌ No                 | Use `bd <cmd> --help`                  |
+| Workflow checklists   | ❌ No                 | `bd prime` covers this                 |
 
 ### Resource update checklist:
 
@@ -52,13 +53,13 @@ ADRs in `adr/` document key decisions. These are NOT loaded during skill invocat
 
 ## File Roles
 
-| File | Purpose | When to Update |
-|------|---------|----------------|
-| SKILL.md | Entry point, resource index | New features, version bumps |
-| README.md | Human docs, installation | Structure changes |
-| CLAUDE.md | This file, maintenance guide | Architecture changes |
-| adr/*.md | Decision records | When making architectural decisions |
-| resources/*.md | Deep-dive guides | New conceptual content |
+| File           | Purpose                      | When to Update                      |
+| -------------- | ---------------------------- | ----------------------------------- |
+| SKILL.md       | Entry point, resource index  | New features, version bumps         |
+| README.md      | Human docs, installation     | Structure changes                   |
+| CLAUDE.md      | This file, maintenance guide | Architecture changes                |
+| adr/*.md       | Decision records             | When making architectural decisions |
+| resources/*.md | Deep-dive guides             | New conceptual content              |
 
 ## Testing Changes
 
