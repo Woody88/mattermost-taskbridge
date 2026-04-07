@@ -2,6 +2,7 @@ import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Schema from "effect/Schema"
 import * as ServiceMap from "effect/ServiceMap"
+import * as Stream from "effect/Stream"
 import * as ChildProcess from "effect/unstable/process/ChildProcess"
 import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner"
 import * as Path from "node:path"
@@ -23,12 +24,38 @@ export class Git extends ServiceMap.Service<Git, {
     Effect.gen(function*() {
       const spawner = yield* ChildProcessSpawner
 
+      // Spawn `git <args>` and fail with a GitError carrying captured stderr if
+      // the process exits non-zero. We use spawn() + handle.exitCode rather than
+      // spawner.string() because string() reads stdout only and never consults
+      // the exit code, so a failing git clone would silently resolve as success
+      // (see obsidian-mcp-server-ktp). stderr and exitCode are awaited
+      // concurrently to avoid pipe-buffer deadlocks on chatty git output.
       const run = (args: ReadonlyArray<string>, cwd?: string) => {
         const command = cwd === undefined
           ? ChildProcess.make`git ${args}`
           : ChildProcess.make({ cwd })`git ${args}`
-        return spawner.string(command).pipe(
-          Effect.mapError((cause) => new GitError({ message: `git ${args.join(" ")} failed: ${String(cause)}` }))
+        return Effect.scoped(
+          Effect.gen(function*() {
+            const handle = yield* spawner.spawn(command)
+            const [stderr, exit] = yield* Effect.all(
+              [
+                Stream.mkString(Stream.decodeText(handle.stderr)),
+                handle.exitCode
+              ],
+              { concurrency: 2 }
+            )
+            if ((exit as number) !== 0) {
+              return yield* new GitError({
+                message: `git ${args.join(" ")} exited with ${exit}: ${stderr.trim() || "<no stderr>"}`
+              })
+            }
+          })
+        ).pipe(
+          Effect.mapError((cause) =>
+            cause._tag === "GitError"
+              ? cause
+              : new GitError({ message: `git ${args.join(" ")} failed: ${String(cause)}` })
+          )
         )
       }
 
