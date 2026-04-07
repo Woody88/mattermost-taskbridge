@@ -4,7 +4,7 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "prepare": "effect-language-service patch && effect-tsgo patch && lefthook install",
+    "prepare": "effect-language-service patch && effect-tsgo patch",
     "start": "bun run src/main.ts",
     "dev": "bun --hot run src/main.ts",
     "typecheck": "tsc --noEmit",

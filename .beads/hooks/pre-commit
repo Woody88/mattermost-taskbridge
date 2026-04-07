@@ -22,3 +22,14 @@ if command -v bd >/dev/null 2>&1; then
   if [ $_bd_exit -ne 0 ]; then exit $_bd_exit; fi
 fi
 # --- END BEADS INTEGRATION v0.61.0 ---
+
+# Chain lefthook after beads. We can't use `lefthook install` because beads
+# already owns core.hooksPath, so lefthook refuses to clobber it (see
+# obsidian-mcp-server-2xp). bd's `hooks install` docs explicitly promise that
+# user content outside the BEGIN/END markers is preserved across hook
+# regeneration, so this line survives `bd hooks install` upgrades.
+if command -v lefthook >/dev/null 2>&1; then
+  lefthook run pre-commit
+elif [ -x "node_modules/.bin/lefthook" ]; then
+  node_modules/.bin/lefthook run pre-commit
+fi
