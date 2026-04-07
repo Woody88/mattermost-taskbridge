@@ -30,6 +30,7 @@ set -eu
 REPOS_DIR="${REPOS_DIR:-/data/repos}"
 PROJECTS_CONFIG_PATH="${PROJECTS_CONFIG_PATH:-/app/config/projects.json}"
 BOOT_TIMEOUT="${BOOT_TIMEOUT:-60}"
+SYNC_INTERVAL="${SYNC_INTERVAL:-15}"
 
 echo "[entrypoint] starting taskbridge in background"
 /app/taskbridge &
@@ -110,5 +111,58 @@ for key in $(project_keys); do
   fi
 done
 
-echo "[entrypoint] dolt boot complete, handing off to taskbridge (pid $TB_PID)"
+echo "[entrypoint] dolt boot complete"
+
+# Background sync loop: polls git for new commits every SYNC_INTERVAL
+# seconds and runs bd backup restore when anything changed. This gives us
+# gitops-native dev→cluster sync without needing a webhook or a Dolt
+# remote. Bounded lag, bounded by SYNC_INTERVAL.
+#
+# Why we can't sync per-request:
+#   bd backup restore takes ~7 s even on a no-op database because of the
+#   dolt connection overhead. Mattermost's slash command timeout is 3 s.
+#   Running bd in the request path blows the budget every time.
+#
+# Why the git rev-parse short-circuit matters:
+#   bd itself has no cheap "is there new data?" check — every bd read
+#   also costs ~7 s. But git fetch is ~500 ms and `git rev-parse` is
+#   ~40 ms. So we use git as the idempotency check and only run the
+#   expensive bd op when git tells us there's actually new data. Most
+#   cycles are a ~500 ms no-op.
+#
+# Safety:
+#   Only runs git pull --ff-only so a dev-side force-push won't clobber
+#   unexpected local commits (there shouldn't be any in the pod, but
+#   belt and suspenders).
+#   Every bd write path that lands in Phase 2 will need to commit + push
+#   the backup JSONLs back to git, otherwise this loop will keep
+#   overwriting the pod-local state.
+(
+  while true; do
+    sleep "$SYNC_INTERVAL"
+    for key in $(project_keys); do
+      repo="$REPOS_DIR/$key"
+      [ -d "$repo/.git" ] || continue
+      cd "$repo"
+      # Skip silently if offline / fetch fails.
+      git fetch --quiet origin main 2>/dev/null || { cd /app; continue; }
+      local_head=$(git rev-parse HEAD 2>/dev/null || echo "")
+      remote_head=$(git rev-parse origin/main 2>/dev/null || echo "")
+      if [ -n "$remote_head" ] && [ "$local_head" != "$remote_head" ]; then
+        echo "[sync] $key: $local_head -> $remote_head"
+        if git pull --ff-only --quiet 2>/dev/null; then
+          /usr/local/bin/bd backup restore 2>&1 | tail -1 || true
+          echo "[sync] $key: restore complete"
+        else
+          echo "[sync] $key: git pull failed (non-fast-forward?)"
+        fi
+      fi
+      cd /app
+    done
+  done
+) &
+SYNC_PID=$!
+
+echo "[entrypoint] background sync loop started (pid $SYNC_PID, every ${SYNC_INTERVAL}s)"
+echo "[entrypoint] handing off to taskbridge (pid $TB_PID)"
 wait $TB_PID
