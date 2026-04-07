@@ -1,5 +1,15 @@
 {"created_at":"2026-04-07T02:24:01Z","created_by":"Woodson Delhia","depends_on_id":"obsidian-mcp-server-oyd","issue_id":"obsidian-mcp-server-290","metadata":"{}","type":"discovered-from"}
 {"created_at":"2026-04-07T00:32:35Z","created_by":"Woodson Delhia","depends_on_id":"obsidian-mcp-server-oyd","issue_id":"obsidian-mcp-server-2xp","metadata":"{}","type":"discovered-from"}
+{"created_at":"2026-04-07T15:39:09Z","created_by":"Woodson Delhia","depends_on_id":"obsidian-mcp-server-7q9","issue_id":"obsidian-mcp-server-7q9.1","metadata":"{}","type":"parent-child"}
+{"created_at":"2026-04-07T15:39:21Z","created_by":"Woodson Delhia","depends_on_id":"obsidian-mcp-server-7q9","issue_id":"obsidian-mcp-server-7q9.2","metadata":"{}","type":"parent-child"}
+{"created_at":"2026-04-07T15:40:11Z","created_by":"Woodson Delhia","depends_on_id":"obsidian-mcp-server-7q9.1","issue_id":"obsidian-mcp-server-7q9.2","metadata":"{}","type":"blocks"}
+{"created_at":"2026-04-07T15:39:37Z","created_by":"Woodson Delhia","depends_on_id":"obsidian-mcp-server-7q9","issue_id":"obsidian-mcp-server-7q9.3","metadata":"{}","type":"parent-child"}
+{"created_at":"2026-04-07T15:40:12Z","created_by":"Woodson Delhia","depends_on_id":"obsidian-mcp-server-7q9.2","issue_id":"obsidian-mcp-server-7q9.3","metadata":"{}","type":"blocks"}
+{"created_at":"2026-04-07T15:39:54Z","created_by":"Woodson Delhia","depends_on_id":"obsidian-mcp-server-7q9","issue_id":"obsidian-mcp-server-7q9.4","metadata":"{}","type":"parent-child"}
+{"created_at":"2026-04-07T15:40:13Z","created_by":"Woodson Delhia","depends_on_id":"obsidian-mcp-server-7q9.3","issue_id":"obsidian-mcp-server-7q9.4","metadata":"{}","type":"blocks"}
+{"created_at":"2026-04-07T15:40:05Z","created_by":"Woodson Delhia","depends_on_id":"obsidian-mcp-server-7q9","issue_id":"obsidian-mcp-server-7q9.5","metadata":"{}","type":"parent-child"}
+{"created_at":"2026-04-07T15:40:13Z","created_by":"Woodson Delhia","depends_on_id":"obsidian-mcp-server-7q9.4","issue_id":"obsidian-mcp-server-7q9.5","metadata":"{}","type":"blocks"}
+{"created_at":"2026-04-07T15:40:20Z","created_by":"Woodson Delhia","depends_on_id":"obsidian-mcp-server-7q9","issue_id":"obsidian-mcp-server-9o5","metadata":"{}","type":"blocks"}
 {"created_at":"2026-04-07T02:02:28Z","created_by":"Woodson Delhia","depends_on_id":"obsidian-mcp-server-oyd","issue_id":"obsidian-mcp-server-ktp","metadata":"{}","type":"discovered-from"}
 {"created_at":"2026-04-07T15:38:36Z","created_by":"Woodson Delhia","depends_on_id":"obsidian-mcp-server-wpq","issue_id":"obsidian-mcp-server-pin","metadata":"{}","type":"discovered-from"}
 {"created_at":"2026-04-07T01:11:31Z","created_by":"Woodson Delhia","depends_on_id":"obsidian-mcp-server-oyd","issue_id":"obsidian-mcp-server-r98","metadata":"{}","type":"discovered-from"}
