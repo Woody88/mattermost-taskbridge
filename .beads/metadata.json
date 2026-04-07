@@ -1,7 +1,7 @@
 {
   "database": "dolt",
   "backend": "dolt",
-  "dolt_mode": "server",
+  "dolt_mode": "embedded",
   "dolt_database": "obsidian_mcp_server",
   "project_id": "08b9b926-5c4e-4dcc-b714-ce5f0b194a74"
 }
