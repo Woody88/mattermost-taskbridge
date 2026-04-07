@@ -29,6 +29,25 @@ REPOS_DIR="${REPOS_DIR:-/data/repos}"
 PROJECTS_CONFIG_PATH="${PROJECTS_CONFIG_PATH:-/app/config/projects.json}"
 BOOT_TIMEOUT="${BOOT_TIMEOUT:-60}"
 
+# If GITHUB_TOKEN is set in the environment (mounted from the
+# taskbridge-secrets ExternalSecret), wire up a git credential helper
+# that supplies it for any HTTPS clone — both the per-project `git clone`
+# done by taskbridge's ensureRepos AND the `dolt clone git+https://...`
+# done in this script for the embedded dolt bootstrap. Without this,
+# private project repos return 403 on clone. Public repos work with or
+# without the token.
+#
+# The helper is a one-line shell function (no extra files to manage)
+# using the documented x-access-token username convention for fine-
+# grained PATs and GitHub App installation tokens.
+if [ -n "${GITHUB_TOKEN:-}" ]; then
+  echo "[entrypoint] GITHUB_TOKEN present — configuring git credential helper"
+  git config --global credential.helper \
+    '!f() { echo "username=x-access-token"; echo "password=${GITHUB_TOKEN}"; }; f'
+else
+  echo "[entrypoint] no GITHUB_TOKEN set — assuming public-repo-only configuration"
+fi
+
 echo "[entrypoint] starting taskbridge in background (it will run ensureRepos)"
 /app/taskbridge &
 TB_PID=$!
