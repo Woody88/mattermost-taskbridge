@@ -124,7 +124,51 @@ while read -r key repo_url branch; do
     echo "[entrypoint] WARNING: timeout waiting for $key repo clone — bd will return empty for this project"
   fi
 done < /tmp/projects.list
-rm -f /tmp/projects.list
+# /tmp/projects.list is intentionally kept; the background sync loop
+# below re-reads it on every tick. Cleaned up on container exit.
 
-echo "[entrypoint] all projects processed, handing off to taskbridge (pid $TB_PID)"
+echo "[entrypoint] all projects processed, starting inbound sync loop"
+
+# Background inbound sync loop. bd v1.0.0's auto-push handles outbound
+# sync (dev box → github via refs/dolt/data, 5min debounce). It does NOT
+# auto-pull from the remote — without this loop, the cluster pod's bd
+# state would stay frozen at whatever was cloned at boot, and dev-box
+# writes would never reach Mattermost slash commands until pod restart.
+#
+# Per-project `bd dolt pull` is cheap when there's nothing new (a refs
+# check) and bounded by SYNC_INTERVAL when there is. The whole loop
+# requires GITHUB_TOKEN because bd dolt pull internally does a
+# `git push refs/dolt/blobstore/origin/...` for blobstore mirroring as
+# part of every pull (verified empirically; see ADR
+# obsidian-mcp-server-l75 Phase C notes).
+#
+# Without GITHUB_TOKEN we still loop but bd dolt pull will fail at the
+# git push step. The loop logs the failure and continues — bd reads
+# stay at the boot snapshot in that case, which is the same degraded
+# mode as the no-credentials boot path.
+SYNC_INTERVAL="${SYNC_INTERVAL:-60}"
+(
+  while true; do
+    sleep "$SYNC_INTERVAL"
+    while read -r key _ _; do
+      repo="$REPOS_DIR/$key"
+      [ -d "$repo/.beads/embeddeddolt" ] || continue
+      cd "$repo"
+      out=$(/usr/local/bin/bd dolt pull 2>&1) || true
+      # Only log when something interesting happened (suppress the
+      # noisy "Pulling from Dolt remote..." / "Pull complete." pair
+      # on every tick).
+      case "$out" in
+        *"error"*|*"Error"*|*"fatal"*|*"fast-forward"*|*"updated"*)
+          echo "[sync-pull] $key: $(echo "$out" | tail -3 | tr '\n' ' ')"
+          ;;
+      esac
+      cd /app
+    done < /tmp/projects.list
+  done
+) &
+SYNC_PID=$!
+echo "[entrypoint] inbound sync loop started (pid $SYNC_PID, every ${SYNC_INTERVAL}s)"
+
+echo "[entrypoint] handing off to taskbridge (pid $TB_PID)"
 wait $TB_PID
