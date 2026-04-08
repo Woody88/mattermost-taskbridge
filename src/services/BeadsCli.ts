@@ -39,6 +39,7 @@ export class BeadsCli extends ServiceMap.Service<BeadsCli, {
     options?: { readonly status?: "open" | "closed" | "in_progress" | undefined }
   ) => Effect.Effect<ReadonlyArray<BeadTask>, BeadsCliError>
   readonly show: (repoPath: string, beadId: string) => Effect.Effect<BeadTask, BeadsCliError | BeadNotFoundError>
+  readonly search: (repoPath: string, query: string) => Effect.Effect<ReadonlyArray<BeadTask>, BeadsCliError>
 }>()("@taskbridge/BeadsCli") {
   static readonly layer: Layer.Layer<BeadsCli, never, ChildProcessSpawner> = Layer.effect(BeadsCli)(
     Effect.gen(function*() {
@@ -91,7 +92,15 @@ export class BeadsCli extends ServiceMap.Service<BeadsCli, {
             return yield* decodeOne(candidate).pipe(
               Effect.mapError((cause) => new BeadsCliError({ message: `Failed to decode bd show: ${String(cause)}` }))
             )
-          })
+          }),
+
+        // Title-substring + ID-prefix search via `bd search`. Verified in
+        // subtask 1mq that `bd search --json` works cleanly and is NOT
+        // affected by the `wisp_dependencies` bug from issue 0hz (unlike
+        // `bd blocked --json`, which is). Status filter is "open" by default
+        // upstream — we don't pass --status here so the agent gets the same
+        // shape as `bd list` for consistency.
+        search: (repoPath, query) => Effect.flatMap(runJson(["search", query, "--json"], repoPath), decodeArrayE)
       })
     })
   )
