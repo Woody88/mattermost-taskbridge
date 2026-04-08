@@ -48,6 +48,17 @@ else
   echo "[entrypoint] no GITHUB_TOKEN set — assuming public-repo-only configuration"
 fi
 
+# dolt operations (fetch / merge / pull) require a user identity even
+# when they're not creating commits, otherwise dolt errors out with
+# "fatal: empty ident name not allowed". The cluster pod is a read-only
+# consumer so the values don't need to be meaningful — just present.
+# Both git config and dolt config are needed; dolt's pull path checks
+# both at different layers.
+git config --global user.name "${BEADS_ACTOR:-taskbridge-cluster}"
+git config --global user.email "taskbridge@cluster.local"
+dolt config --add user.name "${BEADS_ACTOR:-taskbridge-cluster}" --global >/dev/null 2>&1 || true
+dolt config --add user.email "taskbridge@cluster.local" --global >/dev/null 2>&1 || true
+
 echo "[entrypoint] starting taskbridge in background (it will run ensureRepos)"
 /app/taskbridge &
 TB_PID=$!
@@ -135,32 +146,40 @@ echo "[entrypoint] all projects processed, starting inbound sync loop"
 # state would stay frozen at whatever was cloned at boot, and dev-box
 # writes would never reach Mattermost slash commands until pod restart.
 #
-# Per-project `bd dolt pull` is cheap when there's nothing new (a refs
-# check) and bounded by SYNC_INTERVAL when there is. The whole loop
-# requires GITHUB_TOKEN because bd dolt pull internally does a
-# `git push refs/dolt/blobstore/origin/...` for blobstore mirroring as
-# part of every pull (verified empirically; see ADR
-# obsidian-mcp-server-l75 Phase C notes).
+# We use vanilla `dolt fetch && dolt merge` (NOT `bd dolt pull`).
+# Empirically discovered during Phase C: `bd dolt pull` does an
+# internal `git push` to refs/dolt/blobstore/origin/dolt/data/* on
+# every pull as a kind of mirroring side-effect. That side-effect
+# write makes the cluster diverge from the dev box on every tick,
+# producing real merge conflicts as soon as both sides write. Vanilla
+# dolt fetch + merge does NOT push anything back, so the cluster
+# stays a true read-only consumer relative to refs/dolt/data.
 #
-# Without GITHUB_TOKEN we still loop but bd dolt pull will fail at the
-# git push step. The loop logs the failure and continues — bd reads
-# stay at the boot snapshot in that case, which is the same degraded
-# mode as the no-credentials boot path.
+# Per-project tick:
+#   1. cd into the embedded dolt dir (where the dolt config lives)
+#   2. dolt fetch origin    — pull refs/dolt/data into refs/remotes/origin/main
+#   3. dolt merge origin/main — fast-forward local main to match
+#   The merge is always a fast-forward in normal operation because the
+#   cluster never writes locally. If something does write locally
+#   (e.g. a future Phase 6 interactive action), the merge could
+#   conflict and the loop logs the error.
 SYNC_INTERVAL="${SYNC_INTERVAL:-60}"
 (
   while true; do
     sleep "$SYNC_INTERVAL"
     while read -r key _ _; do
       repo="$REPOS_DIR/$key"
-      [ -d "$repo/.beads/embeddeddolt" ] || continue
-      cd "$repo"
-      out=$(/usr/local/bin/bd dolt pull 2>&1) || true
-      # Only log when something interesting happened (suppress the
-      # noisy "Pulling from Dolt remote..." / "Pull complete." pair
-      # on every tick).
-      case "$out" in
-        *"error"*|*"Error"*|*"fatal"*|*"fast-forward"*|*"updated"*)
-          echo "[sync-pull] $key: $(echo "$out" | tail -3 | tr '\n' ' ')"
+      dbname=$(echo "$key" | tr - _)
+      doltdir="$repo/.beads/embeddeddolt/$dbname"
+      [ -d "$doltdir" ] || continue
+      cd "$doltdir"
+      fetch_out=$(dolt fetch origin 2>&1) || true
+      merge_out=$(dolt merge origin/main 2>&1) || true
+      # Suppress "Everything up-to-date" idle ticks; log only when
+      # something happened (rows added/modified/deleted) or errored.
+      case "$merge_out" in
+        *"rows added"*|*"rows modified"*|*"rows deleted"*|*"error"*|*"Error"*|*"fatal"*|*"conflict"*)
+          echo "[sync-pull] $key: $(echo "$merge_out" | grep -E '(tables changed|error|conflict)' | head -1)"
           ;;
       esac
       cd /app
